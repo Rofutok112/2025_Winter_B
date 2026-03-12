@@ -150,15 +150,20 @@ namespace Projects.Scripts.Puzzle
         }
 
         /// <summary>
-        /// グリッドをすべてクリアする
+        /// グリッドをすべてクリアし、占有率を返す。
         /// </summary>
-        public void Clear()
+        public float Clear()
         {
+            var occupiedCount = 0;
             for (var x = 0; x < GridSize; x++)
-                for (var y = 0; y < GridSize; y++)
-                    _occupied[x, y] = false;
-
+            for (var y = 0; y < GridSize; y++)
+            {
+                if (_occupied[x, y]) occupiedCount++;
+                _occupied[x, y] = false;
+            }
+            
             OnGridChanged?.Invoke();
+            return occupiedCount / (float)(GridSize * GridSize);
         }
     }
 }
