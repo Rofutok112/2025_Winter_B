@@ -175,8 +175,8 @@ namespace Projects.Scripts.Puzzle
                 var col = GetComponent<Collider2D>();
                 if (col != null) col.enabled = false;
 
-                // ライン消去チェック
-                gridView.Grid.ClearCompletedLines();
+                // ライン消去チェック TODO: 終了の自由化
+                //gridView.Grid.ClearCompletedLines();
             }
             else
             {
@@ -215,8 +215,7 @@ namespace Projects.Scripts.Puzzle
             var filledCells = shape.GetFilledCells();
             var cellSize = gridView.CellSize;
             var center = CalculatePieceCenter(filledCells, cellSize);
-
-            // GridToWorldPositionはセル中心のワールド座標を返すので、
+            
             // ピースの中心オフセットをそのまま加算する
             var gridWorldPos = gridView.GridToWorldPosition(gridOrigin);
             var snappedPos = new Vector2(

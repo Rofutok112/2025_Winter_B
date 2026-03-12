@@ -31,13 +31,12 @@ namespace Projects.Scripts.Puzzle
         [Tooltip("配置プレビュー（配置不可能）の色")]
         [SerializeField] private Color previewInvalidColor = new(1f, 0.3f, 0.3f, 0.5f);
 
-        private PuzzleGrid _grid;
         private SpriteRenderer[,] _cellRenderers;
 
         /// <summary>
         /// パズルグリッドのデータへのアクセス
         /// </summary>
-        public PuzzleGrid Grid => _grid;
+        public PuzzleGrid Grid { get; private set; }
 
         /// <summary>
         /// 1セルのワールド空間サイズ
@@ -51,15 +50,15 @@ namespace Projects.Scripts.Puzzle
 
         private void Awake()
         {
-            _grid = new PuzzleGrid(gridSize);
-            _grid.OnGridChanged += RefreshView;
+            Grid = new PuzzleGrid(gridSize);
+            Grid.OnGridChanged += RefreshView;
             CreateGridVisuals();
         }
 
         private void OnDestroy()
         {
-            if (_grid != null)
-                _grid.OnGridChanged -= RefreshView;
+            if (Grid != null)
+                Grid.OnGridChanged -= RefreshView;
         }
 
         /// <summary>
@@ -114,7 +113,7 @@ namespace Projects.Scripts.Puzzle
             {
                 for (var x = 0; x < gridSize; x++)
                 {
-                    _cellRenderers[x, y].color = _grid.IsOccupied(x, y) ? occupiedColor : emptyColor;
+                    _cellRenderers[x, y].color = Grid.IsOccupied(x, y) ? occupiedColor : emptyColor;
                 }
             }
         }
@@ -127,7 +126,7 @@ namespace Projects.Scripts.Puzzle
             // まず通常表示に戻す
             RefreshView();
 
-            var canPlace = _grid.CanPlace(shape, origin);
+            var canPlace = Grid.CanPlace(shape, origin);
             var previewColor = canPlace ? previewValidColor : previewInvalidColor;
 
             var filledCells = shape.GetFilledCells();
@@ -135,7 +134,7 @@ namespace Projects.Scripts.Puzzle
             {
                 var gx = origin.x + cell.x;
                 var gy = origin.y + cell.y;
-                if (_grid.IsInBounds(gx, gy))
+                if (Grid.IsInBounds(gx, gy))
                 {
                     _cellRenderers[gx, gy].color = previewColor;
                 }
