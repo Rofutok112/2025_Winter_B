@@ -10,12 +10,8 @@ namespace Projects.Scripts.InteractiveObjects
     public class DishWasher : MonoBehaviour, IInputHandler
     {
         private const float WashingTime = 5.0f;
-
         private bool _isRunning;
         
-        /// <summary>
-        /// 押下として利用
-        /// </summary>
         public void OnInputBegin(Vector2 pos)
         {
             if (_isRunning) return;
