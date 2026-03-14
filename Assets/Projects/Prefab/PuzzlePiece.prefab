@@ -41,13 +41,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 4077177745218259854}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 985a736f04f04c9e88c2a862a5d8134d, type: 3}
+  m_Script: {fileID: 11500000, guid: 2ef7245fc8334465be2d0b962955c46a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projects.Scripts.Puzzle.PuzzlePiece
   shape: {fileID: 0}
   gridView: {fileID: 0}
-  cellSprite: {fileID: 21300000, guid: 240ed8fdeb6b0734bbfa345176924371, type: 3}
-  pieceColor: {r: 1, g: 1, b: 1, a: 1}
   dragScale: 1
   dragAlpha: 0.5
   previewAlpha: 0.4

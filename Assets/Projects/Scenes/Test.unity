@@ -1587,7 +1587,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 11
+  m_SortingOrder: 5
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: f6ccda5509d47ef48a7740ef658497c8, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1815,7 +1815,7 @@ Transform:
   m_GameObject: {fileID: 1821184156}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5, y: 0.5, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1830,20 +1830,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 1821184156}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7c3eb665005f4586becbdaeda89d4e74, type: 3}
+  m_Script: {fileID: 11500000, guid: c9ab1e4460b541e6b1c7d4f8c01b1e27, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projects.Scripts.Puzzle.PuzzlePieceGenerator
   shapePool:
+  - {fileID: 11400000, guid: 809f75c8ad873b647848eeda5cd7741a, type: 2}
   - {fileID: 11400000, guid: dcfe1d2ea57ea014db527cb30efd7c16, type: 2}
-  - {fileID: 11400000, guid: 295c0fa220f669a439552db190d59721, type: 2}
   - {fileID: 11400000, guid: f3139b89ea4fbe64f94d35072d343668, type: 2}
   piecePrefab: {fileID: 967775569976299608, guid: 9f4643ff631376a42b87857434f7f4bc, type: 3}
   gridView: {fileID: 501165247}
-  slotCount: 5
-  slotSpacing: 0.5
-  slotAreaOffset: {x: 0, y: -0.5, z: 0}
-  slotDirection: 1
-  batchGeneration: 0
+  slotCount: 3
+  slotSpacing: 0.8
+  slotAreaOffset: {x: 0, y: -1, z: 0}
+  slotDirection: 0
+  batchGeneration: 1
   allowDuplicateShapes: 1
 --- !u!1 &1824950077
 GameObject:
