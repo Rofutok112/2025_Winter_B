@@ -8,12 +8,8 @@ namespace Projects.Scripts.Audio
         private static AudioManager _instance;
 
         private readonly Dictionary<string, AudioClip> _clips = new();
+        private readonly Dictionary<string, AudioSource> _sources = new();
 
-        private AudioSource _audioSource;
-
-        /// <summary>
-        /// キーとAudioClipを登録する。既に同じキーが登録されている場合は上書きされる。
-        /// </summary>
         public static void Register(string key, AudioClip clip)
         {
             if (string.IsNullOrWhiteSpace(key))
@@ -30,10 +26,7 @@ namespace Projects.Scripts.Audio
 
             EnsureInstance()._clips[key] = clip;
         }
-        
-        /// <summary>
-        /// キーに対応するAudioClipの登録を解除する。登録されていないキーの場合は何も起こらない。
-        /// </summary>
+
         public static bool Unregister(string key)
         {
             if (string.IsNullOrWhiteSpace(key))
@@ -41,20 +34,22 @@ namespace Projects.Scripts.Audio
                 return false;
             }
 
-            return EnsureInstance()._clips.Remove(key);
+            var instance = EnsureInstance();
+            instance.StopInternal(key);
+
+            if (instance._sources.Remove(key, out var source) && source != null)
+            {
+                Destroy(source);
+            }
+
+            return instance._clips.Remove(key);
         }
-        
-        /// <summary>
-        /// キーに対応するAudioClipが登録されているかどうかを返す。
-        /// </summary>
+
         public static bool IsRegistered(string key)
         {
             return !string.IsNullOrWhiteSpace(key) && EnsureInstance()._clips.ContainsKey(key);
         }
-        
-        /// <summary>
-        /// キーに対応するAudioClipを再生する。登録されていないキーの場合は何も起こらない。
-        /// </summary>
+
         public static void Play(string key, float volume = 1f, bool loop = false)
         {
             var instance = EnsureInstance();
@@ -63,16 +58,15 @@ namespace Projects.Scripts.Audio
                 return;
             }
 
-            instance._audioSource.loop = loop;
-            instance._audioSource.clip = clip;
-            instance._audioSource.volume = volume;
-            instance._audioSource.Play();
+            var source = instance.GetOrCreateSource(key);
+            source.Stop();
+            source.clip = clip;
+            source.volume = volume;
+            source.loop = loop;
+            source.Play();
         }
-        
-        /// <summary>
-        /// キーに対応するAudioClipを一度だけ再生する。登録されていないキーの場合は何も起こらない。
-        /// </summary>
-        public static void PlayOneShot(string key, float volumeScale = 1f)
+
+        public static void PlayOneShot(string key, float volume = 1f)
         {
             var instance = EnsureInstance();
             if (!instance.TryGetClip(key, out var clip))
@@ -80,12 +74,13 @@ namespace Projects.Scripts.Audio
                 return;
             }
 
-            instance._audioSource.PlayOneShot(clip, volumeScale);
+            var source = instance.GetOrCreateSource(key);
+            source.clip = clip;
+            source.volume = volume;
+            source.loop = false;
+            source.Play();
         }
-        
-        /// <summary>
-        /// 現在再生中のAudioClipを停止する。再生中でない場合は何も起こらない。
-        /// </summary>
+
         public static void Stop()
         {
             if (_instance == null)
@@ -93,9 +88,27 @@ namespace Projects.Scripts.Audio
                 return;
             }
 
-            _instance._audioSource.Stop();
-            _instance._audioSource.clip = null;
-            _instance._audioSource.loop = false;
+            foreach (var source in _instance._sources.Values)
+            {
+                if (source == null)
+                {
+                    continue;
+                }
+
+                source.Stop();
+                source.clip = null;
+                source.loop = false;
+            }
+        }
+
+        public static void Stop(string key)
+        {
+            if (_instance == null || string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            _instance.StopInternal(key);
         }
 
         private static AudioManager EnsureInstance()
@@ -108,14 +121,12 @@ namespace Projects.Scripts.Audio
             _instance = FindFirstObjectByType<AudioManager>();
             if (_instance != null)
             {
-                _instance.Initialize();
                 return _instance;
             }
 
             var managerObject = new GameObject(nameof(AudioManager));
             DontDestroyOnLoad(managerObject);
             _instance = managerObject.AddComponent<AudioManager>();
-            _instance.Initialize();
             return _instance;
         }
 
@@ -137,6 +148,31 @@ namespace Projects.Scripts.Audio
             return false;
         }
 
+        private AudioSource GetOrCreateSource(string key)
+        {
+            if (_sources.TryGetValue(key, out var source) && source != null)
+            {
+                return source;
+            }
+
+            source = gameObject.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            _sources[key] = source;
+            return source;
+        }
+
+        private void StopInternal(string key)
+        {
+            if (!_sources.TryGetValue(key, out var source) || source == null)
+            {
+                return;
+            }
+
+            source.Stop();
+            source.clip = null;
+            source.loop = false;
+        }
+
         private void Awake()
         {
             if (_instance != null && _instance != this)
@@ -147,7 +183,6 @@ namespace Projects.Scripts.Audio
 
             _instance = this;
             DontDestroyOnLoad(gameObject);
-            Initialize();
         }
 
         private void OnDestroy()
@@ -156,21 +191,6 @@ namespace Projects.Scripts.Audio
             {
                 _instance = null;
             }
-        }
-
-        private void Initialize()
-        {
-            if (_audioSource == null)
-            {
-                _audioSource = gameObject.GetComponent<AudioSource>();
-            }
-
-            if (_audioSource == null)
-            {
-                _audioSource = gameObject.AddComponent<AudioSource>();
-            }
-
-            _audioSource.playOnAwake = false;
         }
     }
 }

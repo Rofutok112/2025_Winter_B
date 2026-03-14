@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Projects.Scripts.Audio;
 using Projects.Scripts.BackGround;
 using Projects.Scripts.Control;
 using UnityEngine;
@@ -13,8 +14,16 @@ namespace Projects.Scripts.InteractiveObjects
         private const float WashingTime = 5.0f;
 
         [SerializeField] private WasherAnim washerAnim;
+        [SerializeField] private AudioClip washerStartClip;
+        [SerializeField] private AudioClip washingNoiseClip;
 
         private bool _isRunning;
+
+        private void Start()
+        {
+            AudioManager.Register("WashingNoise", washingNoiseClip);
+            AudioManager.Register("WashingStart", washerStartClip);
+        }
 
         public void OnInputBegin(Vector2 pos)
         {
@@ -26,6 +35,8 @@ namespace Projects.Scripts.InteractiveObjects
         {
             _isRunning = true;
             washerAnim?.StartVibration();
+            AudioManager.PlayOneShot("WashingStart", volume: 0.7f);
+            AudioManager.Play("WashingNoise", volume: 0.5f, loop: true);
 
             var currentTime = WashingTime;
             while (currentTime >= 0)
@@ -35,6 +46,7 @@ namespace Projects.Scripts.InteractiveObjects
             }
 
             washerAnim?.StopVibration();
+            AudioManager.Stop("WashingNoise");
             _isRunning = false;
             Debug.Log("洗浄完了！");
         }
