@@ -29,6 +29,9 @@ namespace Projects.Scripts.Puzzle
         [Tooltip("プレビュー（ゴースト）の不透明度（0.0～1.0）")]
         [SerializeField, Range(0f, 1f)] private float previewAlpha = 0.4f;
 
+        [Tooltip("ストック状態でのスケール倍率")]
+        [SerializeField, Range(0.1f, 1f)] private float stockScaleMultiplier = 0.8f;
+
         private Vector2 _dragOffset;
         private Vector3 _originalScale;
         private Vector2 _spawnPosition;
@@ -208,6 +211,7 @@ namespace Projects.Scripts.Puzzle
                 _dishRenderer.sortingOrder = 10 + _orderInLayer;
             }
 
+            ApplyStockScale();
             SetInteractable(isInteractable);
         }
 
@@ -227,7 +231,7 @@ namespace Projects.Scripts.Puzzle
             if (_isPlaced) return;
 
             _dragOffset = (Vector2)transform.position - pos;
-            transform.localScale = _originalScale * dragScale;
+            ApplyFullScale(dragScale);
             SetAlpha(dragAlpha);
         }
 
@@ -249,7 +253,7 @@ namespace Projects.Scripts.Puzzle
         {
             if (_isPlaced) return;
 
-            transform.localScale = _originalScale;
+            ApplyFullScale();
             SetAlpha(1f);
             DestroyGhost();
 
@@ -275,12 +279,23 @@ namespace Projects.Scripts.Puzzle
                 if (_returnToSpawnOnFailedPlacement)
                 {
                     transform.position = _spawnPosition;
+                    ApplyStockScale();
                 }
                 else
                 {
                     _onFailedPlacementCallback?.Invoke(this);
                 }
             }
+        }
+
+        private void ApplyStockScale()
+        {
+            transform.localScale = _originalScale * stockScaleMultiplier;
+        }
+
+        private void ApplyFullScale(float multiplier = 1f)
+        {
+            transform.localScale = _originalScale * multiplier;
         }
 
         /// <summary>

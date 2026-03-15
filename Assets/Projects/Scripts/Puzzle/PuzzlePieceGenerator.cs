@@ -40,6 +40,12 @@ namespace Projects.Scripts.Puzzle
         [Tooltip("スロットの配置間隔")]
         [SerializeField] private float slotSpacing = 3f;
 
+        [Tooltip("1段あたりに並べるスロット数。超えた分は次の段に折り返す")]
+        [SerializeField, Min(1)] private int slotsPerLine = 4;
+
+        [Tooltip("段間の配置間隔")]
+        [SerializeField] private float lineSpacing = 3f;
+
         [Tooltip("スロットを配置する基準位置からのオフセット（ローカル座標）")]
         [SerializeField] private Vector3 slotAreaOffset = new(0f, -5f, 0f);
 
@@ -121,16 +127,9 @@ namespace Projects.Scripts.Puzzle
             _slotPositions = new Vector3[slotCount];
             _slotStates = new SlotState[slotCount];
 
-            var totalLength = (slotCount - 1) * slotSpacing;
-            var startPos = -totalLength / 2f;
-
             for (var i = 0; i < slotCount; i++)
             {
-                var offset = slotDirection == SlotLayoutDirection.Horizontal
-                    ? new Vector3(startPos + i * slotSpacing, 0f, 0f)
-                    : new Vector3(0f, -startPos - i * slotSpacing, 0f);
-
-                _slotPositions[i] = transform.TransformPoint(slotAreaOffset + offset);
+                _slotPositions[i] = transform.TransformPoint(slotAreaOffset + CalculateSlotOffset(i, slotCount));
                 _slotStates[i] = new SlotState();
             }
         }
@@ -236,6 +235,32 @@ namespace Projects.Scripts.Puzzle
         private static float GetRefillInterval(PuzzlePieceShape shape)
         {
             return shape != null ? shape.RefillIntervalSeconds : 0.1f;
+        }
+
+        private Vector3 CalculateSlotOffset(int slotIndex, int slotCount)
+        {
+            if (slotCount <= 0) return Vector3.zero;
+
+            var effectiveSlotsPerLine = Mathf.Max(1, slotsPerLine);
+            var lineIndex = slotIndex / effectiveSlotsPerLine;
+            var indexInLine = slotIndex % effectiveSlotsPerLine;
+            var lineWidth = (effectiveSlotsPerLine - 1) * slotSpacing;
+            var lineStart = -lineWidth / 2f;
+
+            if (slotDirection == SlotLayoutDirection.Horizontal)
+            {
+                return new Vector3(
+                    lineStart + indexInLine * slotSpacing,
+                    -lineIndex * lineSpacing,
+                    0f
+                );
+            }
+
+            return new Vector3(
+                lineIndex * lineSpacing,
+                -lineStart - indexInLine * slotSpacing,
+                0f
+            );
         }
 
         private void RefillSlot(int slotIndex, int amount)
@@ -394,6 +419,7 @@ namespace Projects.Scripts.Puzzle
         {
             maxPiecesPerSlot = Mathf.Clamp(maxPiecesPerSlot, 1, MaxSupportedOrderInLayer);
             initialPiecesPerSlot = Mathf.Clamp(initialPiecesPerSlot, 1, maxPiecesPerSlot);
+            slotsPerLine = Mathf.Max(1, slotsPerLine);
         }
 
         /// <summary>
@@ -404,18 +430,11 @@ namespace Projects.Scripts.Puzzle
             var slotCount = GetAvailableShapes().Count;
             if (slotCount <= 0) return;
 
-            var totalLength = (slotCount - 1) * slotSpacing;
-            var startPos = -totalLength / 2f;
-
             Gizmos.color = new Color(0.2f, 0.8f, 0.3f, 0.5f);
 
             for (var i = 0; i < slotCount; i++)
             {
-                var offset = slotDirection == SlotLayoutDirection.Horizontal
-                    ? new Vector3(startPos + i * slotSpacing, 0f, 0f)
-                    : new Vector3(0f, -startPos - i * slotSpacing, 0f);
-
-                var pos = transform.TransformPoint(slotAreaOffset + offset);
+                var pos = transform.TransformPoint(slotAreaOffset + CalculateSlotOffset(i, slotCount));
                 Gizmos.DrawSphere(pos, 0.1f);
 
                 var topPos = pos + stackPieceOffset * Mathf.Max(initialPiecesPerSlot - 1, 0);
