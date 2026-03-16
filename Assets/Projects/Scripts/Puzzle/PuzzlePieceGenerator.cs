@@ -439,6 +439,20 @@ namespace Projects.Scripts.Puzzle
         /// </summary>
         public void ResetAndRegenerate()
         {
+            ResetPuzzle();
+        }
+
+        /// <summary>
+        /// グリッドと配置済みピース、未配置ピースをすべて初期化して再生成する
+        /// </summary>
+        public void ResetPuzzle()
+        {
+            if (gridView != null && gridView.Grid != null)
+            {
+                gridView.Grid.Clear();
+            }
+
+            CleanupPlacedPieces();
             ClearAllPieces();
             GenerateAllPieces();
         }
