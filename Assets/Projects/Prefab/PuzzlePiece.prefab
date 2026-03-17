@@ -44,9 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ef7245fc8334465be2d0b962955c46a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Projects.Scripts.Puzzle.PuzzlePiece
-  shape: {fileID: 0}
-  gridView: {fileID: 0}
   dragScale: 0.7
   dragAlpha: 0.5
   previewAlpha: 0.4
-  stockScaleMultiplier: 0.5
+  stockScaleMultiplier: 0.7
