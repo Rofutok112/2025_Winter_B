@@ -3,6 +3,7 @@ using Cysharp.Threading.Tasks;
 using Projects.Scripts.Audio;
 using Projects.Scripts.BackGround;
 using Projects.Scripts.Control;
+using Projects.Scripts.Sorting;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -23,6 +24,7 @@ namespace Projects.Scripts.InteractiveObjects
         [Header("References")]
         [SerializeField] private RackManager rackManager;
         [SerializeField] private WasherAnim washerAnim;
+        [SerializeField] private SortingManager sortingManager;
 
         [Header("Audio")]
         [SerializeField] private AudioClip washerStartClip;
@@ -84,11 +86,18 @@ namespace Projects.Scripts.InteractiveObjects
         {
             if (_currentRack == null) return;
 
-            _currentRack.SetState(RackState.Washed);
-            _currentRack.gameObject.SetActive(true);
+            var rack = _currentRack;
+            rack.SetState(RackState.Washed);
+            rack.gameObject.SetActive(true);
             _currentRack = null;
 
             SetState(DishWasherState.Idle);
+
+            // 選別画面を開始
+            if (sortingManager != null)
+            {
+                sortingManager.StartSorting(rack);
+            }
 
             // 次のPackedラックがあれば即座に洗浄開始
             TryStartWashing();

@@ -17,4 +17,6 @@ MonoBehaviour:
   cells: 01010101010100000001010000000101000000010101010101
   dishSprites:
   - {fileID: 21300000, guid: 98ffadfdd1930ab4cb33b3a0f4e11ce5, type: 3}
+  - {fileID: 21300000, guid: e5895a3907f8d1743a0c86d70389713d, type: 3}
+  - {fileID: 21300000, guid: 240ed8fdeb6b0734bbfa345176924371, type: 3}
   refillIntervalSeconds: 3

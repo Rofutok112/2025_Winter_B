@@ -25,6 +25,7 @@ namespace Projects.Scripts.InteractiveObjects
         [SerializeField] private List<Rack> racks;
 
         [SerializeField] private UnityEvent onPuzzleConfirmed;
+        [SerializeField] private UnityEvent onPuzzleWindowActivated;
 
         /// <summary>
         /// 現在パズル中のラック（null = パズル画面を開いていない）
@@ -75,6 +76,8 @@ namespace Projects.Scripts.InteractiveObjects
             puzzlePieceGenerator.ResetPuzzle();
             puzzleWindow.SetActive(true);
             puzzleGridView.PlayOpeningAnimation();
+            
+            onPuzzleWindowActivated.Invoke();
         }
 
         /// <summary>
