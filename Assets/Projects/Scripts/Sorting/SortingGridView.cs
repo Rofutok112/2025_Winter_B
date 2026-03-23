@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Projects.Scripts.Common;
 using Projects.Scripts.Puzzle;
 using UnityEngine;
 
@@ -10,22 +11,8 @@ namespace Projects.Scripts.Sorting
     /// 選別画面用のグリッド表示。
     /// グリッドセルの描画と、Shape Poolに基づくドロップターゲットの配置を担当する。
     /// </summary>
-    public class SortingGridView : MonoBehaviour
+    public class SortingGridView : BaseGridView
     {
-        [Header("Grid Settings")]
-        [Tooltip("グリッドの一辺のセル数")]
-        [SerializeField] private int gridSize = 8;
-
-        [Tooltip("1セルのワールド空間サイズ")]
-        [SerializeField] private float cellSize = 1f;
-
-        [Header("Cell Visuals")]
-        [Tooltip("セルに使用するスプライト（正方形推奨）")]
-        [SerializeField] private Sprite cellSprite;
-
-        [Tooltip("セルの色")]
-        [SerializeField] private Color cellColor = new(0.9f, 0.9f, 0.9f, 1f);
-
         [Header("Target Settings")]
         [Tooltip("ターゲットのプレハブ")]
         [SerializeField] private SortingTarget targetPrefab;
@@ -54,55 +41,30 @@ namespace Projects.Scripts.Sorting
         [Tooltip("ターゲットの判定半径")]
         [SerializeField, Min(0.1f)] private float targetRadius = 1.5f;
 
-        private SpriteRenderer[,] _cellRenderers;
         private readonly List<SortingTarget> _activeTargets = new();
 
-        public int GridSize => gridSize;
-        public float CellSize => cellSize;
         public IReadOnlyList<SortingTarget> ActiveTargets => _activeTargets;
         public float TargetRadius => targetRadius;
 
-        private void Awake()
+        protected override void Awake()
         {
-            CreateGrid();
+            base.Awake();
             CreateTargets();
         }
 
-        private void CreateGrid()
+        private SortingTargetFactory CreateTargetFactory()
         {
-            _cellRenderers = new SpriteRenderer[gridSize, gridSize];
-
-            var gridOffset = new Vector2(
-                -(gridSize * cellSize) / 2f + cellSize / 2f,
-                -(gridSize * cellSize) / 2f + cellSize / 2f
+            return new SortingTargetFactory(
+                transform,
+                targetPrefab,
+                targetAreaOffset,
+                targetSpacing,
+                targetsPerLine,
+                lineSpacing,
+                targetDirection,
+                targetAlpha,
+                CellLocalSize
             );
-
-            for (var y = 0; y < gridSize; y++)
-            {
-                for (var x = 0; x < gridSize; x++)
-                {
-                    var cellObj = new GameObject($"SortCell_{x}_{y}");
-                    cellObj.transform.SetParent(transform, false);
-                    cellObj.transform.localPosition = new Vector3(
-                        gridOffset.x + x * cellSize,
-                        gridOffset.y + y * cellSize,
-                        0
-                    );
-
-                    var sr = cellObj.AddComponent<SpriteRenderer>();
-                    sr.sprite = cellSprite;
-                    sr.color = cellColor;
-
-                    if (cellSprite != null)
-                    {
-                        var spriteSize = cellSprite.bounds.size;
-                        var scale = cellSize / Mathf.Max(spriteSize.x, spriteSize.y);
-                        cellObj.transform.localScale = Vector3.one * scale;
-                    }
-
-                    _cellRenderers[x, y] = sr;
-                }
-            }
         }
 
         /// <summary>
@@ -110,82 +72,23 @@ namespace Projects.Scripts.Sorting
         /// </summary>
         private void CreateTargets()
         {
+            _activeTargets.Clear();
+
             if (shapePool == null || shapePool.Shapes == null || shapePool.Shapes.Count == 0 || targetPrefab == null) return;
 
-            var count = shapePool.Shapes.Count;
-
-            for (var i = 0; i < count; i++)
-            {
-                var shape = shapePool.Shapes[i];
-                if (shape == null) continue;
-
-                var localOffset = targetAreaOffset + CalculateTargetOffset(i, count);
-                var worldPos = transform.TransformPoint(localOffset);
-
-                var target = Instantiate(targetPrefab, worldPos, Quaternion.identity, transform);
-                target.name = $"SortingTarget_{shape.name}";
-                target.Initialize(
-                    shape.name,
-                    shape.DishTypeName,
-                    shape.GetEffectiveSprite(),
-                    targetAlpha,
-                    shape.Width,
-                    shape.Height,
-                    cellSize
-                );
-                _activeTargets.Add(target);
-            }
+            _activeTargets.AddRange(CreateTargetFactory().CreateTargets(shapePool.Shapes));
         }
 
-        private Vector3 CalculateTargetOffset(int index, int totalCount)
+        protected override string GetCellObjectPrefix()
         {
-            if (totalCount <= 0) return Vector3.zero;
-
-            var effectivePerLine = Mathf.Max(1, targetsPerLine);
-            var lineIndex = index / effectivePerLine;
-            var indexInLine = index % effectivePerLine;
-            var lineWidth = (effectivePerLine - 1) * targetSpacing;
-            var lineStart = -lineWidth / 2f;
-
-            if (targetDirection == SlotLayoutDirection.Horizontal)
-            {
-                return new Vector3(
-                    lineStart + indexInLine * targetSpacing,
-                    -lineIndex * lineSpacing,
-                    0f
-                );
-            }
-
-            return new Vector3(
-                lineIndex * lineSpacing,
-                -lineStart - indexInLine * targetSpacing,
-                0f
-            );
-        }
-
-        /// <summary>
-        /// グリッド座標をワールド座標（セル中心）に変換する
-        /// </summary>
-        public Vector2 GridToWorldPosition(Vector2Int gridPos)
-        {
-            var gridOffset = new Vector2(
-                -(gridSize * cellSize) / 2f + cellSize / 2f,
-                -(gridSize * cellSize) / 2f + cellSize / 2f
-            );
-
-            var localPos = new Vector3(
-                gridOffset.x + gridPos.x * cellSize,
-                gridOffset.y + gridPos.y * cellSize,
-                0
-            );
-
-            return transform.TransformPoint(localPos);
+            return "SortCell";
         }
 
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
-            // ランタイム中：実際のターゲット位置を表示
+            DrawGridBoundsGizmo();
+
             if (_activeTargets is { Count: > 0 })
             {
                 Gizmos.color = new Color(0.2f, 0.8f, 0.3f, 0.5f);
@@ -198,13 +101,12 @@ namespace Projects.Scripts.Sorting
                 return;
             }
 
-            // エディタ上：Shape Pool数分のプレビュー位置を表示
             var count = shapePool != null && shapePool.Shapes != null ? shapePool.Shapes.Count : 1;
+            var factory = CreateTargetFactory();
             Gizmos.color = new Color(0.8f, 0.6f, 0.2f, 0.5f);
             for (var i = 0; i < count; i++)
             {
-                var localOffset = targetAreaOffset + CalculateTargetOffset(i, count);
-                var pos = transform.TransformPoint(localOffset);
+                var pos = factory.GetPreviewPosition(i, count);
                 Gizmos.DrawWireSphere(pos, targetRadius);
                 Gizmos.DrawSphere(pos, 0.1f);
             }

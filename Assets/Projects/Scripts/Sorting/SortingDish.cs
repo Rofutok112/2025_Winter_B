@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Projects.Scripts.Control;
 using UnityEngine;
 
@@ -11,12 +10,10 @@ namespace Projects.Scripts.Sorting
     public class SortingDish : MonoBehaviour, IInputHandler
     {
         private string _shapeKey;
-        private SpriteRenderer _spriteRenderer;
         private Vector2 _dragOffset;
         private Vector2 _spawnPosition;
         private Action<SortingDish> _onSortedCallback;
-        private IReadOnlyList<SortingTarget> _targets;
-        private float _targetRadius;
+        private SortingDropResolver _dropResolver;
 
         public string ShapeKey => _shapeKey;
 
@@ -25,42 +22,16 @@ namespace Projects.Scripts.Sorting
             Sprite sprite,
             int shapeWidth,
             int shapeHeight,
-            float cellSize,
-            IReadOnlyList<SortingTarget> targets,
-            float targetRadius,
+            Vector2 cellSize,
+            SortingDropResolver dropResolver,
             Action<SortingDish> onSorted)
         {
             _shapeKey = shapeKey;
-            _targets = targets;
-            _targetRadius = targetRadius;
+            _dropResolver = dropResolver;
             _onSortedCallback = onSorted;
 
-            _spriteRenderer = GetComponent<SpriteRenderer>();
-            if (_spriteRenderer == null)
-                _spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
-
-            _spriteRenderer.sprite = sprite;
-            _spriteRenderer.sortingOrder = 10;
-
-            // スプライトをセルサイズに合わせてスケーリング
-            if (sprite != null)
-            {
-                var spriteSize = sprite.bounds.size;
-                var targetWidth = shapeWidth * cellSize;
-                var targetHeight = shapeHeight * cellSize;
-                transform.localScale = new Vector3(
-                    targetWidth / spriteSize.x,
-                    targetHeight / spriteSize.y,
-                    1f
-                );
-            }
-
+            SortingDishVisualBuilder.Build(transform, sprite, shapeWidth, shapeHeight, cellSize);
             _spawnPosition = transform.position;
-
-            if (GetComponent<Collider2D>() == null)
-            {
-                gameObject.AddComponent<BoxCollider2D>();
-            }
         }
 
         public void OnInputBegin(Vector2 pos)
@@ -76,7 +47,7 @@ namespace Projects.Scripts.Sorting
         public void OnInputEnd(Vector2 pos)
         {
             var dropPos = pos + _dragOffset;
-            var target = FindClosestTarget(dropPos);
+            var target = _dropResolver != null ? _dropResolver.FindClosestTarget(dropPos) : null;
 
             if (target != null && target.ShapeKey == _shapeKey)
             {
@@ -87,28 +58,6 @@ namespace Projects.Scripts.Sorting
             {
                 transform.position = _spawnPosition;
             }
-        }
-
-        private SortingTarget FindClosestTarget(Vector2 worldPos)
-        {
-            if (_targets == null) return null;
-
-            SortingTarget closest = null;
-            var closestDist = float.MaxValue;
-
-            foreach (var target in _targets)
-            {
-                if (target == null) continue;
-
-                var dist = Vector2.Distance(worldPos, target.transform.position);
-                if (dist < closestDist && dist <= _targetRadius)
-                {
-                    closestDist = dist;
-                    closest = target;
-                }
-            }
-
-            return closest;
         }
     }
 }

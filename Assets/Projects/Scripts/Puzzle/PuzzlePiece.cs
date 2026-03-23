@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Projects.Scripts.Audio;
+using Projects.Scripts.Common;
 using Projects.Scripts.Control;
 using UnityEngine;
 
@@ -40,9 +41,16 @@ namespace Projects.Scripts.Puzzle
         private readonly List<SpriteRenderer> _spriteRenderers = new();
         private SpriteRenderer _dishRenderer;
         private GameObject _ghostObject;
+        private PuzzlePieceGhostFactory _ghostFactory;
         private int _orderInLayer;
         private Sprite _selectedDishSprite;
         private Vector2Int _placedGridOrigin;
+        private Vector2 _localCenter;
+
+        private GridGeometry? CurrentGeometry => _gridView != null ? _gridView.Geometry : null;
+        private PuzzlePiecePlacement? CurrentPlacement => _shape != null && CurrentGeometry != null
+            ? new PuzzlePiecePlacement(_shape, CurrentGeometry.Value)
+            : null;
 
         /// <summary>
         /// このピースの形状データ
@@ -96,6 +104,7 @@ namespace Projects.Scripts.Puzzle
             if (_isInitialized) return;
 
             _isInitialized = true;
+            ApplyBaseCellScale();
             _spawnPosition = transform.position;
             _originalScale = transform.localScale;
             CreatePieceVisuals();
@@ -108,99 +117,16 @@ namespace Projects.Scripts.Puzzle
         {
             if (_shape == null) return;
 
-            var filledCells = _shape.GetFilledCells();
-            var cellSize = _gridView != null ? _gridView.CellSize : 1f;
-
-            // ピースの中心を計算
-            var center = CalculatePieceCenter(filledCells, cellSize);
-
-            // ドラッグ検出用のColliderを追加
-            EnsureCollider(filledCells, cellSize, center);
-
-            // 食器スプライトの表示
-            CreateDishOverlay(cellSize, center);
-        }
-
-        /// <summary>
-        /// 食器スプライトをピースの中心にオーバーレイ表示する
-        /// </summary>
-        private void CreateDishOverlay(float cellSize, Vector2 center)
-        {
-            var sprite = GetSelectedSprite();
-            if (sprite == null) return;
-
-            var dishObj = new GameObject("DishOverlay");
-            dishObj.transform.SetParent(transform, false);
-
-            // 形状のバウンディングボックスの中心に配置
-            var bboxCenter = new Vector3(
-                (_shape.Width - 1) * cellSize / 2f - center.x,
-                (_shape.Height - 1) * cellSize / 2f - center.y,
-                0f
-            );
-            dishObj.transform.localPosition = bboxCenter;
-
-            var sr = dishObj.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = Color.white;
-            sr.sortingOrder = 10 + _orderInLayer;
-            _dishRenderer = sr;
-            _spriteRenderers.Add(sr);
-
-            // スプライトのピクセルサイズから自動スケーリング
-            // 形状のバウンディングボックス（width * cellSize × height * cellSize）に収まるようにする
-            var spriteSize = sprite.bounds.size;
-            var targetWidth = _shape.Width * cellSize;
-            var targetHeight = _shape.Height * cellSize;
-            var scaleX = targetWidth / spriteSize.x;
-            var scaleY = targetHeight / spriteSize.y;
-            dishObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
-        }
-
-        /// <summary>
-        /// ピースの全セルの中心座標を計算する
-        /// </summary>
-        private static Vector2 CalculatePieceCenter(Vector2Int[] filledCells, float cellSize)
-        {
-            if (filledCells.Length == 0) return Vector2.zero;
-
-            var sum = Vector2.zero;
-            foreach (var cell in filledCells)
+            var visualBuilder = new PuzzlePieceVisualBuilder(_shape, GetSelectedSprite(), transform);
+            var visualResult = visualBuilder.Build(previewAlpha, 10 + _orderInLayer, CurrentGeometry?.CellWorldSize ?? Vector2.one);
+            _localCenter = visualResult.LocalCenter;
+            _dishRenderer = visualResult.DishRenderer;
+            _ghostFactory = visualResult.GhostFactory;
+            _spriteRenderers.Clear();
+            if (visualResult.SpriteRenderers != null)
             {
-                sum += new Vector2(cell.x * cellSize, cell.y * cellSize);
+                _spriteRenderers.AddRange(visualResult.SpriteRenderers);
             }
-            return sum / filledCells.Length;
-        }
-
-        /// <summary>
-        /// ドラッグ可能にするためのColliderを設定する
-        /// </summary>
-        private void EnsureCollider(Vector2Int[] filledCells, float cellSize, Vector2 center)
-        {
-            // 既存のColliderがあれば削除
-            var existingCollider = GetComponent<Collider2D>();
-            if (existingCollider != null)
-                Destroy(existingCollider);
-
-            // ピースの全セルを包むBoxColliderを作成
-            var minX = float.MaxValue;
-            var minY = float.MaxValue;
-            var maxX = float.MinValue;
-            var maxY = float.MinValue;
-
-            foreach (var cell in filledCells)
-            {
-                var x = cell.x * cellSize - center.x;
-                var y = cell.y * cellSize - center.y;
-                minX = Mathf.Min(minX, x - cellSize / 2f);
-                minY = Mathf.Min(minY, y - cellSize / 2f);
-                maxX = Mathf.Max(maxX, x + cellSize / 2f);
-                maxY = Mathf.Max(maxY, y + cellSize / 2f);
-            }
-
-            var boxCollider = gameObject.AddComponent<BoxCollider2D>();
-            boxCollider.offset = new Vector2((minX + maxX) / 2f, (minY + maxY) / 2f);
-            boxCollider.size = new Vector2(maxX - minX, maxY - minY);
         }
 
         public void ConfigureStackPresentation(Vector3 worldPosition, int orderInLayer, bool isInteractable)
@@ -331,15 +257,7 @@ namespace Projects.Scripts.Puzzle
                 CreateGhost();
 
             // ゴーストをスナップ位置に移動
-            var filledCells = _shape.GetFilledCells();
-            var cellSize = _gridView.CellSize;
-            var center = CalculatePieceCenter(filledCells, cellSize);
-
-            var gridWorldPos = _gridView.GridToWorldPosition(gridOrigin);
-            var snappedPos = new Vector2(
-                gridWorldPos.x + center.x,
-                gridWorldPos.y + center.y
-            );
+            var snappedPos = GetPieceWorldPosition(gridOrigin);
 
             _ghostObject.transform.position = new Vector3(snappedPos.x, snappedPos.y, transform.position.z);
         }
@@ -351,38 +269,21 @@ namespace Projects.Scripts.Puzzle
         {
             if (_shape == null) return;
 
-            _ghostObject = new GameObject("GhostPreview");
+            _ghostObject = _ghostFactory != null
+                ? _ghostFactory.Create(_localCenter, previewAlpha)
+                : new GameObject("GhostPreview");
+        }
 
-            var filledCells = _shape.GetFilledCells();
-            var cellSize = _gridView != null ? _gridView.CellSize : 1f;
-            var center = CalculatePieceCenter(filledCells, cellSize);
+        private void ApplyBaseCellScale()
+        {
+            var geometry = CurrentGeometry;
+            if (geometry == null) return;
 
-            // 食器スプライトのゴーストを生成
-            var sprite = GetSelectedSprite();
-            if (sprite != null)
-            {
-                var dishObj = new GameObject("GhostDishOverlay");
-                dishObj.transform.SetParent(_ghostObject.transform, false);
-
-                var bboxCenter = new Vector3(
-                    (_shape.Width - 1) * cellSize / 2f - center.x,
-                    (_shape.Height - 1) * cellSize / 2f - center.y,
-                    0f
-                );
-                dishObj.transform.localPosition = bboxCenter;
-
-                var sr = dishObj.AddComponent<SpriteRenderer>();
-                sr.sprite = sprite;
-                sr.color = new Color(1f, 1f, 1f, previewAlpha);
-                sr.sortingOrder = 5;
-
-                var spriteSize = sprite.bounds.size;
-                var targetWidth = _shape.Width * cellSize;
-                var targetHeight = _shape.Height * cellSize;
-                var scaleX = targetWidth / spriteSize.x;
-                var scaleY = targetHeight / spriteSize.y;
-                dishObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
-            }
+            transform.localScale = new Vector3(
+                geometry.Value.CellWorldSize.x,
+                geometry.Value.CellWorldSize.y,
+                1f
+            );
         }
 
         private Sprite GetSelectedSprite()
@@ -409,18 +310,9 @@ namespace Projects.Scripts.Puzzle
         {
             if (_shape == null) return Vector2Int.zero;
 
-            var filledCells = _shape.GetFilledCells();
-            var cellSize = _gridView.CellSize;
-            var center = CalculatePieceCenter(filledCells, cellSize);
-
-            // ピースの原点(0,0)のワールド座標（セル中心）
-            var originWorldPos = new Vector2(
-                pieceWorldPos.x - center.x,
-                pieceWorldPos.y - center.y
-            );
-
-            // セルのワールド中心座標をグリッド座標に変換して返す
-            return _gridView.WorldToGridPosition(originWorldPos);
+            var geometry = CurrentGeometry;
+            if (geometry == null) return Vector2Int.zero;
+            return new PuzzlePiecePlacement(_shape, geometry.Value).GetGridOrigin(pieceWorldPos);
         }
 
         /// <summary>
@@ -428,18 +320,14 @@ namespace Projects.Scripts.Puzzle
         /// </summary>
         private void SnapToGrid(Vector2Int gridOrigin)
         {
-            var filledCells = _shape.GetFilledCells();
-            var cellSize = _gridView.CellSize;
-            var center = CalculatePieceCenter(filledCells, cellSize);
-
-            // ピースの中心オフセットをそのまま加算する
-            var gridWorldPos = _gridView.GridToWorldPosition(gridOrigin);
-            var snappedPos = new Vector2(
-                gridWorldPos.x + center.x,
-                gridWorldPos.y + center.y
-            );
-
+            var snappedPos = GetPieceWorldPosition(gridOrigin);
             transform.position = new Vector3(snappedPos.x, snappedPos.y, transform.position.z);
+        }
+
+        private Vector2 GetPieceWorldPosition(Vector2Int gridOrigin)
+        {
+            var placement = CurrentPlacement;
+            return placement != null ? placement.Value.GetPieceWorldPosition(gridOrigin) : (Vector2)transform.position;
         }
     }
 }

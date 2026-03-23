@@ -47,32 +47,19 @@ namespace Projects.Scripts.Sorting
         /// </summary>
         private void SpawnDishes(RackPlacementData data)
         {
+            var factory = new SortingDishFactory(
+                sortingGridView.transform,
+                sortingGridView.Geometry,
+                sortingGridView.CellLocalSize,
+                sortingGridView.ActiveTargets,
+                sortingGridView.TargetRadius
+            );
+
             foreach (var dish in data.Dishes)
             {
-                var obj = new GameObject($"SortingDish_{dish.ShapeKey}");
-                obj.transform.SetParent(sortingGridView.transform, false);
-
-                var cellSize = sortingGridView.CellSize;
-                var originPos = sortingGridView.GridToWorldPosition(dish.GridOrigin);
-                var centerOffset = new Vector2(
-                    (dish.ShapeWidth - 1) * cellSize / 2f,
-                    (dish.ShapeHeight - 1) * cellSize / 2f
-                );
-                obj.transform.position = (Vector2)originPos + centerOffset;
-
-                var sortingDish = obj.AddComponent<SortingDish>();
-                sortingDish.Initialize(
-                    dish.ShapeKey,
-                    dish.Sprite,
-                    dish.ShapeWidth,
-                    dish.ShapeHeight,
-                    cellSize,
-                    sortingGridView.ActiveTargets,
-                    sortingGridView.TargetRadius,
-                    OnDishSorted
-                );
-                _activeDishes.Add(sortingDish);
-                _spawnedObjects.Add(obj);
+                var spawnResult = factory.Create(dish, OnDishSorted);
+                _activeDishes.Add(spawnResult.SortingDish);
+                _spawnedObjects.Add(spawnResult.GameObject);
             }
         }
 

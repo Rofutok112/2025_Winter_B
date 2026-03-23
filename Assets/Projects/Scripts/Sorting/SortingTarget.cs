@@ -15,32 +15,20 @@ namespace Projects.Scripts.Sorting
 
         public string ShapeKey => _shapeKey;
 
-        public void Initialize(string shapeKey, string dishTypeName, Sprite sprite, float alpha, int shapeWidth, int shapeHeight, float cellSize)
+        public void Initialize(string shapeKey, string dishTypeName, Sprite sprite, float alpha, int shapeWidth, int shapeHeight, Vector2 cellSize)
         {
             _shapeKey = shapeKey;
-
-            if (spriteRenderer != null)
-            {
-                spriteRenderer.sprite = sprite;
-                spriteRenderer.color = new Color(1f, 1f, 1f, alpha);
-
-                if (sprite != null)
-                {
-                    var spriteSize = sprite.bounds.size;
-                    var targetWidth = shapeWidth * cellSize;
-                    var targetHeight = shapeHeight * cellSize;
-                    spriteRenderer.transform.localScale = new Vector3(
-                        targetWidth / spriteSize.x,
-                        targetHeight / spriteSize.y,
-                        1f
-                    );
-                }
-            }
-
-            if (label != null)
-            {
-                label.text = dishTypeName ?? shapeKey;
-            }
+            SortingTargetVisualBuilder.Build(
+                spriteRenderer,
+                label,
+                shapeKey,
+                dishTypeName,
+                sprite,
+                alpha,
+                shapeWidth,
+                shapeHeight,
+                cellSize
+            );
         }
     }
 }
