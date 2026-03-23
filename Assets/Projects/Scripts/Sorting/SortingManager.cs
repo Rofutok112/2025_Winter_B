@@ -3,6 +3,7 @@ using Projects.Scripts.InteractiveObjects;
 using UnityEngine;
 using UnityEngine.Events;
 
+
 namespace Projects.Scripts.Sorting
 {
     /// <summary>
@@ -37,6 +38,7 @@ namespace Projects.Scripts.Sorting
             rack.SetState(RackState.Sorting);
 
             sortingWindow.SetActive(true);
+            InteractionLock.IsLocked = true;
             SpawnDishes(rack.PlacementData);
         }
 
@@ -95,6 +97,7 @@ namespace Projects.Scripts.Sorting
 
             Cleanup();
             sortingWindow.SetActive(false);
+            InteractionLock.IsLocked = false;
             onSortingCompleted?.Invoke();
         }
 

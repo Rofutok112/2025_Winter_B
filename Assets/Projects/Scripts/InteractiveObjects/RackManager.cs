@@ -76,7 +76,8 @@ namespace Projects.Scripts.InteractiveObjects
             puzzlePieceGenerator.ResetPuzzle();
             puzzleWindow.SetActive(true);
             puzzleGridView.PlayOpeningAnimation();
-            
+            InteractionLock.IsLocked = true;
+
             onPuzzleWindowActivated.Invoke();
         }
 
@@ -97,7 +98,8 @@ namespace Projects.Scripts.InteractiveObjects
             puzzleGridView.PlayClosingAnimation();
             puzzleWindow.SetActive(false);
             _activeRack = null;
-            
+            InteractionLock.IsLocked = false;
+
             onPuzzleConfirmed.Invoke();
         }
 

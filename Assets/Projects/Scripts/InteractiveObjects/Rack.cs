@@ -63,6 +63,7 @@ namespace Projects.Scripts.InteractiveObjects
 
         public void OnInputBegin(Vector2 pos)
         {
+            if (InteractionLock.IsLocked) return;
             OnClicked?.Invoke(this);
         }
 

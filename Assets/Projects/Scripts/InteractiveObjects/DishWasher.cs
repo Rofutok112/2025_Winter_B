@@ -50,6 +50,8 @@ namespace Projects.Scripts.InteractiveObjects
 
         public void OnInputBegin(Vector2 pos)
         {
+            if (InteractionLock.IsLocked) return;
+
             switch (_state)
             {
                 case DishWasherState.Idle:
