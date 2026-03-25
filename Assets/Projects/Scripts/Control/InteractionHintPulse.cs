@@ -98,7 +98,7 @@ namespace Projects.Scripts.Control
             for (var i = 0; i < _hintRenderers.Length; i++)
             {
                 var childName = $"{hintChildName}_{i}";
-                var existingChild = transform.Find(childName);
+                var existingChild = FindDirectChild(childName);
                 Transform hintTransform;
                 if (existingChild == null)
                 {
@@ -125,6 +125,20 @@ namespace Projects.Scripts.Control
                 _hintTransforms[i] = hintTransform;
                 _hintRenderers[i] = hintRenderer;
             }
+        }
+
+        private Transform FindDirectChild(string childName)
+        {
+            for (var i = 0; i < transform.childCount; i++)
+            {
+                var child = transform.GetChild(i);
+                if (child.name == childName)
+                {
+                    return child;
+                }
+            }
+
+            return null;
         }
 
         private void SyncHintRenderers()

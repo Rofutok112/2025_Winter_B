@@ -5,7 +5,7 @@ namespace Projects.Scripts.UI
 {
     /// <summary>
     /// HUD の Score / Time 表示を更新する。
-    /// UnityEvent から各 setter を呼ぶ前提の受け口。
+    /// 外部イベントから各 setter を呼ぶ前提の受け口。
     /// </summary>
     public class GameHudTextPresenter : MonoBehaviour
     {

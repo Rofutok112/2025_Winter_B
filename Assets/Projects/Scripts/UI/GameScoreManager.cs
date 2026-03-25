@@ -2,7 +2,6 @@ using System;
 using Projects.Scripts.Puzzle;
 using Projects.Scripts.InteractiveObjects;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Projects.Scripts.UI
 {
@@ -19,11 +18,6 @@ namespace Projects.Scripts.UI
         [Header("References")]
         [SerializeField] private DishWasher dishWasher;
 
-        [Header("Events")]
-        [SerializeField] private UnityEvent<int> onScoreChanged;
-        [SerializeField] private UnityEvent<float> onTimeChanged;
-        [SerializeField] private UnityEvent onTimeUp;
-
         private int _totalPiecePoints;
         private float _remainingTimeSeconds;
         private bool _isTimerRunning;
@@ -37,14 +31,14 @@ namespace Projects.Scripts.UI
         public float FinalResultScore => _totalPiecePoints * UtilizationRatio;
         public float RemainingTimeSeconds => _remainingTimeSeconds;
         public bool IsTimerRunning => _isTimerRunning;
+        public bool IsTimeUp => _hasTimeUpInvoked;
+
+        public event Action<int> ScoreChanged;
+        public event Action<float> TimeChanged;
+        public event Action TimeUp;
 
         private void Awake()
         {
-            if (dishWasher == null)
-            {
-                dishWasher = FindFirstObjectByType<DishWasher>();
-            }
-
             _remainingTimeSeconds = gameTimeLimitSeconds;
             _isTimerRunning = startTimerOnAwake;
             RefreshTexts();
@@ -60,9 +54,7 @@ namespace Projects.Scripts.UI
 
             if (_remainingTimeSeconds <= 0f && !_hasTimeUpInvoked)
             {
-                _hasTimeUpInvoked = true;
-                _isTimerRunning = false;
-                onTimeUp?.Invoke();
+                HandleTimeUp();
             }
         }
 
@@ -78,6 +70,11 @@ namespace Projects.Scripts.UI
 
         public void AddSortedPiecePoints(int piecePoints)
         {
+            if (_hasTimeUpInvoked)
+            {
+                return;
+            }
+
             _totalPiecePoints += Mathf.Max(0, piecePoints);
             RefreshTexts();
             PuzzleScoreStore.SaveScore(CurrentScore);
@@ -102,19 +99,45 @@ namespace Projects.Scripts.UI
         public void SetRemainingTime(float seconds)
         {
             _remainingTimeSeconds = Mathf.Clamp(seconds, 0f, gameTimeLimitSeconds);
-            _hasTimeUpInvoked = _remainingTimeSeconds <= 0f;
-            if (_hasTimeUpInvoked)
+            if (_remainingTimeSeconds <= 0f)
             {
-                _isTimerRunning = false;
+                HandleTimeUp();
+            }
+            else
+            {
+                _hasTimeUpInvoked = false;
             }
 
             RefreshTexts();
         }
 
+        public GameResultSummary BuildResultSummary()
+        {
+            return new GameResultSummary(
+                _totalPiecePoints,
+                TotalWasherRunningSeconds,
+                UtilizationRatio,
+                FinalResultScore);
+        }
+
         private void RefreshTexts()
         {
-            onScoreChanged?.Invoke(CurrentScore);
-            onTimeChanged?.Invoke(_remainingTimeSeconds);
+            ScoreChanged?.Invoke(CurrentScore);
+            TimeChanged?.Invoke(_remainingTimeSeconds);
+        }
+
+        private void HandleTimeUp()
+        {
+            if (_hasTimeUpInvoked)
+            {
+                return;
+            }
+
+            _remainingTimeSeconds = 0f;
+            _hasTimeUpInvoked = true;
+            _isTimerRunning = false;
+            PuzzleScoreStore.SaveScore(FinalResultScore);
+            TimeUp?.Invoke();
         }
     }
 }

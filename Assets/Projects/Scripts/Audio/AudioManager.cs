@@ -118,12 +118,6 @@ namespace Projects.Scripts.Audio
                 return _instance;
             }
 
-            _instance = FindFirstObjectByType<AudioManager>();
-            if (_instance != null)
-            {
-                return _instance;
-            }
-
             var managerObject = new GameObject(nameof(AudioManager));
             DontDestroyOnLoad(managerObject);
             _instance = managerObject.AddComponent<AudioManager>();

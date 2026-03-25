@@ -1,8 +1,8 @@
+using System;
 using System.Collections.Generic;
 using Projects.Scripts.Control;
 using Projects.Scripts.InteractiveObjects;
 using UnityEngine;
-using UnityEngine.Events;
 
 
 namespace Projects.Scripts.Sorting
@@ -27,41 +27,16 @@ namespace Projects.Scripts.Sorting
         [Header("Input")]
         [SerializeField] private InputStateRouter inputStateRouter;
 
-        [Header("Score")]
-        [SerializeField] private UnityEvent<int> onSortingScoreConfirmed;
-
-        [Header("Events")]
-        [SerializeField] private UnityEvent onSortingCompleted;
-
         private readonly List<SortingDish> _activeDishes = new();
         private readonly List<GameObject> _spawnedObjects = new();
         private Rack _currentRack;
         private bool _isSortingTransitioning;
+        public event Action<int> SortingScoreConfirmed;
+        public event Action SortingCompleted;
 
         private void Awake()
         {
-            if (inputStateRouter == null)
-            {
-                inputStateRouter = FindFirstObjectByType<InputStateRouter>();
-            }
-
-            if (inputStateRouter == null)
-            {
-                var inputManager = FindFirstObjectByType<InputManager>();
-                if (inputManager != null)
-                {
-                    inputStateRouter = inputManager.GetComponent<InputStateRouter>();
-                    if (inputStateRouter == null)
-                    {
-                        inputStateRouter = inputManager.gameObject.AddComponent<InputStateRouter>();
-                    }
-                }
-            }
-
-            if (sortingTargetGroup == null)
-            {
-                sortingTargetGroup = FindFirstObjectByType<SortingTargetGroup>();
-            }
+            ValidateReferences();
         }
 
         /// <summary>
@@ -69,13 +44,14 @@ namespace Projects.Scripts.Sorting
         /// </summary>
         public void StartSorting(Rack rack)
         {
-            if (rack == null || rack.PlacementData == null || _currentRack != null || _isSortingTransitioning) return;
+            if (rack == null || rack.PlacementData == null || _currentRack != null || _isSortingTransitioning || !ValidateReferences()) return;
 
             _isSortingTransitioning = true;
             _currentRack = rack;
             rack.SetState(RackState.Sorting);
 
             sortingWindow.SetActive(true);
+            ResetTargets();
             SpawnDishes(rack.PlacementData);
             sortingGridView.PlayOpeningAnimation(() =>
             {
@@ -108,7 +84,7 @@ namespace Projects.Scripts.Sorting
 
         private void OnDishSorted(SortingDish dish, int scorePoints)
         {
-            onSortingScoreConfirmed?.Invoke(Mathf.Max(0, scorePoints));
+            SortingScoreConfirmed?.Invoke(Mathf.Max(0, scorePoints));
             _activeDishes.Remove(dish);
 
             if (_activeDishes.Count == 0)
@@ -136,7 +112,7 @@ namespace Projects.Scripts.Sorting
                 Cleanup();
                 sortingWindow.SetActive(false);
                 _isSortingTransitioning = false;
-                onSortingCompleted?.Invoke();
+                SortingCompleted?.Invoke();
             });
         }
 
@@ -149,6 +125,50 @@ namespace Projects.Scripts.Sorting
 
             _spawnedObjects.Clear();
             _activeDishes.Clear();
+            ResetTargets();
+        }
+
+        public void ForceCloseSorting()
+        {
+            _isSortingTransitioning = false;
+            inputStateRouter?.ResetToDefault();
+
+            if (_currentRack != null)
+            {
+                _currentRack.SetState(RackState.Washed);
+                _currentRack = null;
+            }
+
+            Cleanup();
+
+            if (sortingWindow != null)
+            {
+                sortingWindow.SetActive(false);
+            }
+        }
+
+        private void ResetTargets()
+        {
+            if (sortingTargetGroup == null) return;
+
+            foreach (var target in sortingTargetGroup.ActiveTargets)
+            {
+                target?.ResetStack();
+            }
+        }
+
+        private bool ValidateReferences()
+        {
+            if (sortingWindow == null ||
+                sortingGridView == null ||
+                sortingTargetGroup == null ||
+                inputStateRouter == null)
+            {
+                Debug.LogWarning($"{nameof(SortingManager)} is missing scene references.", this);
+                return false;
+            }
+
+            return true;
         }
     }
 }

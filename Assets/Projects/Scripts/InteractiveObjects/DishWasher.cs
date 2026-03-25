@@ -3,7 +3,6 @@ using Cysharp.Threading.Tasks;
 using Projects.Scripts.BackGround;
 using Projects.Scripts.Control;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Projects.Scripts.InteractiveObjects
 {
@@ -22,24 +21,30 @@ namespace Projects.Scripts.InteractiveObjects
         [Header("References")]
         [SerializeField] private RackManager rackManager;
         [SerializeField] private WasherAnim washerAnim;
+        [SerializeField] private Transform rackAnimationTarget;
 
-        [Header("Events")]
-        [SerializeField] private UnityEvent onWashStarted;
-        [SerializeField] private UnityEvent<float> onWashProgressChanged;
-        [SerializeField] private UnityEvent<float> onWashCompleted;
-        [SerializeField] private UnityEvent<DishWasherState> onStateChanged;
+        [Header("Animation")]
+        [SerializeField, Min(0f)] private float rackMoveDuration = 0.35f;
+        [SerializeField, Min(0.1f)] private float rackMoveScale = 0.75f;
 
         private DishWasherState _state = DishWasherState.Idle;
         private Rack _currentRack;
         private float _completedWashElapsedSeconds;
+        private float _currentWashElapsedSeconds;
         private float _totalRunningSeconds;
         private SpriteRenderer _spriteRenderer;
+        private int _washRunVersion;
+        private bool _isRackTransitioning;
 
         public DishWasherState State => _state;
         public Rack CurrentRack => _currentRack;
         public float TotalRunningSeconds => _totalRunningSeconds;
         public bool ShouldShowInteractionHint => HasRackReadyToWash() || HasRackReadyToUnload();
         public SpriteRenderer HintSpriteRenderer => _spriteRenderer;
+        public event Action WashStarted;
+        public event Action<float> WashProgressChanged;
+        public event Action<float> WashCompleted;
+        public event Action<DishWasherState> StateChanged;
 
         private void Awake()
         {
@@ -48,15 +53,20 @@ namespace Projects.Scripts.InteractiveObjects
 
         public void OnInputBegin(Vector2 pos)
         {
+            if (_isRackTransitioning)
+            {
+                return;
+            }
+
             switch (_state)
             {
                 case DishWasherState.Idle:
-                    TryStartWashing();
+                    TryStartWashing().Forget();
                     break;
                 case DishWasherState.Running:
                     break;
                 case DishWasherState.ReadyToUnload:
-                    TakeOutRack();
+                    TakeOutRack().Forget();
                     break;
             }
         }
@@ -64,64 +74,103 @@ namespace Projects.Scripts.InteractiveObjects
         /// <summary>
         /// Packed状態のラックを探して洗浄を開始する
         /// </summary>
-        private void TryStartWashing()
+        private async UniTaskVoid TryStartWashing()
         {
             var rack = rackManager.FindPackedRack();
             if (rack == null) return;
 
+            _isRackTransitioning = true;
             _currentRack = rack;
             rack.SetState(RackState.Washing);
-            rack.gameObject.SetActive(false);
+            await rack.AnimateIntoWasherAsync(GetRackAnimationTarget(), rackMoveDuration, rackMoveScale);
 
             SetState(DishWasherState.Running);
+            _isRackTransitioning = false;
             RunWashTimer().Forget();
         }
 
         /// <summary>
         /// 洗浄完了後にラックを取り出す
         /// </summary>
-        private void TakeOutRack()
+        private async UniTaskVoid TakeOutRack()
         {
             if (_currentRack == null) return;
 
+            _isRackTransitioning = true;
             var rack = _currentRack;
             rack.SetState(RackState.Washed);
-            rack.gameObject.SetActive(true);
+            await rack.AnimateOutOfWasherAsync(GetRackAnimationTarget(), rackMoveDuration, rackMoveScale);
             _currentRack = null;
             _completedWashElapsedSeconds = 0f;
 
             SetState(DishWasherState.Idle);
+            _isRackTransitioning = false;
         }
 
         private async UniTaskVoid RunWashTimer()
         {
-            onWashStarted?.Invoke();
+            var washRunVersion = ++_washRunVersion;
+            WashStarted?.Invoke();
             washerAnim?.StartVibration();
 
             var remaining = washDuration;
             var elapsed = 0f;
-            while (remaining > 0f)
+            _currentWashElapsedSeconds = 0f;
+
+            while (remaining > 0f && washRunVersion == _washRunVersion && _state == DishWasherState.Running)
             {
                 await UniTask.Yield();
                 elapsed += Time.deltaTime;
                 remaining -= Time.deltaTime;
+                _currentWashElapsedSeconds = Mathf.Min(elapsed, washDuration);
                 var normalized = Mathf.Clamp01(remaining / washDuration);
-                onWashProgressChanged?.Invoke(normalized);
+                WashProgressChanged?.Invoke(normalized);
+            }
+
+            if (washRunVersion != _washRunVersion || _state != DishWasherState.Running)
+            {
+                return;
             }
 
             washerAnim?.StopVibration();
 
-            onWashProgressChanged?.Invoke(0f);
+            WashProgressChanged?.Invoke(0f);
             _completedWashElapsedSeconds = Mathf.Min(elapsed, washDuration);
             _totalRunningSeconds += _completedWashElapsedSeconds;
-            onWashCompleted?.Invoke(_completedWashElapsedSeconds);
+            _currentWashElapsedSeconds = 0f;
+            WashCompleted?.Invoke(_completedWashElapsedSeconds);
             SetState(DishWasherState.ReadyToUnload);
+        }
+
+        public void StopForGameEnd()
+        {
+            if (_state != DishWasherState.Running)
+            {
+                return;
+            }
+
+            _washRunVersion++;
+            washerAnim?.StopVibration();
+            _totalRunningSeconds += Mathf.Min(_currentWashElapsedSeconds, washDuration);
+            _currentWashElapsedSeconds = 0f;
+            _completedWashElapsedSeconds = 0f;
+            WashProgressChanged?.Invoke(1f);
+
+            if (_currentRack != null)
+            {
+                _currentRack.gameObject.SetActive(true);
+                _currentRack.ResetToDefaultTransform();
+                _currentRack.SetState(RackState.Packed);
+                _currentRack = null;
+            }
+
+            SetState(DishWasherState.Idle);
         }
 
         private void SetState(DishWasherState newState)
         {
             _state = newState;
-            onStateChanged?.Invoke(newState);
+            StateChanged?.Invoke(newState);
         }
 
         private bool HasRackReadyToWash()
@@ -136,5 +185,10 @@ namespace Projects.Scripts.InteractiveObjects
 
         public void OnInputDrag(Vector2 pos) { }
         public void OnInputEnd(Vector2 pos) { }
+
+        private Transform GetRackAnimationTarget()
+        {
+            return rackAnimationTarget != null ? rackAnimationTarget : transform;
+        }
     }
 }

@@ -164,7 +164,7 @@ namespace Projects.Scripts.Puzzle
         {
             if (_isPlaced) return;
 
-            AudioManager.PlayOneShot("PieceClick");
+            AudioManager.PlayOneShot("PieceClick", 0.5f);
 
             if (_dishRenderer != null)
             {
@@ -205,7 +205,7 @@ namespace Projects.Scripts.Puzzle
             if (_gridView.Grid.TryPlace(_shape, gridPos))
             {
                 // 配置成功: ピースをグリッドのセル位置にスナップ
-                AudioManager.PlayOneShot("PiecePlace");
+                AudioManager.PlayOneShot("PiecePlace", 0.5f);
                 SnapToGrid(gridPos);
                 _isPlaced = true;
                 _placedGridOrigin = gridPos;
@@ -222,7 +222,7 @@ namespace Projects.Scripts.Puzzle
                 if (_returnToSpawnOnFailedPlacement)
                 {
                     transform.localPosition = _spawnLocalPosition;
-                    AudioManager.PlayOneShot("PieceCancel");
+                    AudioManager.PlayOneShot("PieceCancel", 0.25f);
                     ApplyStockScale();
                 }
                 else

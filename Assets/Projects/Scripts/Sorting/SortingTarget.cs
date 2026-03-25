@@ -50,7 +50,15 @@ namespace Projects.Scripts.Sorting
         {
             if (dishTransform == null) return;
 
-            dishTransform.position = transform.TransformPoint(_stackPieceOffset * _stackedDishCount);
+            var currentScale = dishTransform.lossyScale;
+            dishTransform.SetParent(transform, false);
+            dishTransform.localPosition = _stackPieceOffset * _stackedDishCount;
+            dishTransform.localRotation = Quaternion.identity;
+            dishTransform.localScale = new Vector3(
+                SafeDivide(currentScale.x, transform.lossyScale.x),
+                SafeDivide(currentScale.y, transform.lossyScale.y),
+                SafeDivide(currentScale.z, transform.lossyScale.z)
+            );
 
             if (dishRenderer != null)
             {
@@ -58,6 +66,16 @@ namespace Projects.Scripts.Sorting
             }
 
             _stackedDishCount++;
+        }
+
+        public void ResetStack()
+        {
+            _stackedDishCount = 0;
+        }
+
+        private static float SafeDivide(float value, float divisor)
+        {
+            return Mathf.Approximately(divisor, 0f) ? value : value / divisor;
         }
     }
 }

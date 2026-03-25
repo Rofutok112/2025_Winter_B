@@ -18,6 +18,5 @@ MonoBehaviour:
   dishTypeName: "\u30D7\u30EC\u30FC\u30C8"
   dishSprites:
   - {fileID: 21300000, guid: 98ffadfdd1930ab4cb33b3a0f4e11ce5, type: 3}
-  - {fileID: 21300000, guid: e5895a3907f8d1743a0c86d70389713d, type: 3}
-  - {fileID: 21300000, guid: 240ed8fdeb6b0734bbfa345176924371, type: 3}
   refillIntervalSeconds: 3
+  scorePoints: 100

@@ -1,3 +1,4 @@
+using Projects.Scripts.InteractiveObjects;
 using UnityEngine;
 
 namespace Projects.Scripts.Audio
@@ -46,6 +47,16 @@ namespace Projects.Scripts.Audio
         {
             AudioManager.Stop(_washingNoiseKey);
             PlayOneShotIfRegistered(_washingCompleteKey, washingCompleteVolume);
+        }
+
+        public void HandleStateChanged(DishWasherState state)
+        {
+            if (state == DishWasherState.Running)
+            {
+                return;
+            }
+
+            AudioManager.Stop(_washingNoiseKey);
         }
 
         private static void RegisterIfAssigned(string key, AudioClip clip)

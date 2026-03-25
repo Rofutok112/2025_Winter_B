@@ -101,7 +101,7 @@ namespace Projects.Scripts.Common
                 .SetLink(_animationTarget.gameObject)
                 .Append(_animationTarget.DOLocalMove(_defaultLocalPosition, animationDuration).SetEase(openingEase))
                 .Join(_animationTarget.DOScale(_defaultLocalScale, animationDuration).SetEase(Ease.OutQuad))
-                .Join(FadeRenderers(1f))
+                .Join(FadeRenderers(0f, 1f))
                 .OnComplete(() =>
                 {
                     RestoreVisualState();
@@ -127,7 +127,7 @@ namespace Projects.Scripts.Common
                 .SetLink(_animationTarget.gameObject)
                 .Append(_animationTarget.DOLocalMove(_defaultLocalPosition + Vector3.down * animationDistance, animationDuration).SetEase(closingEase))
                 .Join(_animationTarget.DOScale(_defaultLocalScale * startScale, animationDuration).SetEase(Ease.InQuad))
-                .Join(FadeRenderers(0f))
+                .Join(FadeRenderers(1f, 0f))
                 .OnComplete(() =>
                 {
                     RestoreVisualState();
@@ -211,18 +211,10 @@ namespace Projects.Scripts.Common
             }
         }
 
-        private Tween FadeRenderers(float normalizedAlpha)
+        private Tween FadeRenderers(float fromNormalizedAlpha, float toNormalizedAlpha)
         {
-            var fadeSequence = DOTween.Sequence();
-            foreach (var pair in _rendererAlphaCache)
-            {
-                if (pair.Key == null) continue;
-
-                var targetAlpha = pair.Value * normalizedAlpha;
-                fadeSequence.Join(pair.Key.DOFade(targetAlpha, animationDuration).SetEase(Ease.OutQuad));
-            }
-
-            return fadeSequence;
+            return DOVirtual.Float(fromNormalizedAlpha, toNormalizedAlpha, animationDuration, SetRendererAlpha)
+                .SetEase(Ease.OutQuad);
         }
 
         private void SetRendererAlpha(float normalizedAlpha)

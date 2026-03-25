@@ -13,6 +13,9 @@ namespace Projects.Scripts.Control
 
         private IInputHandler _currentHandler;
         private LayerMask _defaultRaycastMask;
+        private bool _inputEnabled = true;
+
+        public bool IsInputEnabled => _inputEnabled;
 
         private void Awake()
         {
@@ -26,6 +29,12 @@ namespace Projects.Scripts.Control
         
         private void Update()
         {
+            if (!_inputEnabled)
+            {
+                _currentHandler = null;
+                return;
+            }
+
             var phase = GetInputPhase(out var screenPosition);
 
             switch (phase)
@@ -93,6 +102,15 @@ namespace Projects.Scripts.Control
         public void ClearRaycastMaskOverride()
         {
             raycastMask = _defaultRaycastMask;
+        }
+
+        public void SetInputEnabled(bool isEnabled)
+        {
+            _inputEnabled = isEnabled;
+            if (!isEnabled)
+            {
+                _currentHandler = null;
+            }
         }
 
         private enum InputPhase

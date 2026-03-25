@@ -55,7 +55,7 @@ namespace Projects.Scripts.Sorting
             }
 
             _dragOffset = (Vector2)transform.position - pos;
-            AudioManager.PlayOneShot("PieceClick");
+            AudioManager.PlayOneShot("PieceClick", 0.5f);
         }
 
         public void OnInputDrag(Vector2 pos)
@@ -81,12 +81,12 @@ namespace Projects.Scripts.Sorting
 
                 target.StackDish(transform, _spriteRenderer);
                 _onSortedCallback?.Invoke(this, _scorePoints);
-                AudioManager.PlayOneShot("PiecePlace");
+                AudioManager.PlayOneShot("PiecePlace", 0.5f);
             }
             else
             {
                 transform.position = _spawnPosition;
-                AudioManager.PlayOneShot("PieceCancel");
+                AudioManager.PlayOneShot("PieceCancel", 0.25f);
             }
         }
     }

@@ -1,9 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Projects.Scripts.Control;
 using Projects.Scripts.Puzzle;
 using Projects.Scripts.Sorting;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Projects.Scripts.InteractiveObjects
 {
@@ -32,39 +32,17 @@ namespace Projects.Scripts.InteractiveObjects
         [Tooltip("管理対象のラック一覧")]
         [SerializeField] private List<Rack> racks;
 
-        [SerializeField] private UnityEvent onPuzzleConfirmed;
-        [SerializeField] private UnityEvent onPuzzleWindowActivated;
-
         /// <summary>
         /// 現在パズル中のラック（null = パズル画面を開いていない）
         /// </summary>
         private Rack _activeRack;
         private bool _isPuzzleTransitioning;
+        public event Action PuzzleConfirmed;
+        public event Action PuzzleWindowActivated;
 
         private void Awake()
         {
-            if (inputStateRouter == null)
-            {
-                inputStateRouter = FindFirstObjectByType<InputStateRouter>();
-            }
-
-            if (inputStateRouter == null)
-            {
-                var inputManager = FindFirstObjectByType<InputManager>();
-                if (inputManager != null)
-                {
-                    inputStateRouter = inputManager.GetComponent<InputStateRouter>();
-                    if (inputStateRouter == null)
-                    {
-                        inputStateRouter = inputManager.gameObject.AddComponent<InputStateRouter>();
-                    }
-                }
-            }
-
-            if (sortingManager == null)
-            {
-                sortingManager = FindFirstObjectByType<SortingManager>();
-            }
+            ValidateReferences();
         }
 
         private void OnEnable()
@@ -106,7 +84,7 @@ namespace Projects.Scripts.InteractiveObjects
         /// </summary>
         private void OpenPuzzle(Rack rack)
         {
-            if (_activeRack != null || _isPuzzleTransitioning) return;
+            if (_activeRack != null || _isPuzzleTransitioning || !ValidateReferences()) return;
 
             _isPuzzleTransitioning = true;
             _activeRack = rack;
@@ -114,7 +92,7 @@ namespace Projects.Scripts.InteractiveObjects
 
             puzzlePieceGenerator.ResetPuzzle();
             puzzleWindow.SetActive(true);
-            onPuzzleWindowActivated.Invoke();
+            PuzzleWindowActivated?.Invoke();
             puzzleGridView.PlayOpeningAnimation(() =>
             {
                 inputStateRouter?.SetOperationState(InputOperationState.Puzzle);
@@ -124,7 +102,7 @@ namespace Projects.Scripts.InteractiveObjects
 
         private void StartSorting(Rack rack)
         {
-            if (rack == null || sortingManager == null) return;
+            if (rack == null || !ValidateReferences()) return;
             sortingManager.StartSorting(rack);
         }
 
@@ -139,10 +117,18 @@ namespace Projects.Scripts.InteractiveObjects
             _isPuzzleTransitioning = true;
 
             var data = CapturePlacementData();
-            _activeRack.SavePlacementData(data);
-            _activeRack.SetState(RackState.Packed);
+            if (data.Dishes.Count > 0)
+            {
+                _activeRack.SavePlacementData(data);
+                _activeRack.SetState(RackState.Packed);
+            }
+            else
+            {
+                _activeRack.ClearPlacementData();
+                _activeRack.SetState(RackState.Empty);
+            }
 
-            onPuzzleConfirmed.Invoke();
+            PuzzleConfirmed?.Invoke();
             inputStateRouter?.ResetToDefault();
             puzzleGridView.PlayClosingAnimation(() =>
             {
@@ -150,6 +136,16 @@ namespace Projects.Scripts.InteractiveObjects
                 _activeRack = null;
                 _isPuzzleTransitioning = false;
             });
+        }
+
+        public void CompleteActivePuzzleForGameEnd()
+        {
+            if (_activeRack == null || _isPuzzleTransitioning || !ValidateReferences())
+            {
+                return;
+            }
+
+            ConfirmPuzzle();
         }
 
         /// <summary>
@@ -196,6 +192,21 @@ namespace Projects.Scripts.InteractiveObjects
             }
 
             return data;
+        }
+
+        private bool ValidateReferences()
+        {
+            if (puzzleWindow == null ||
+                puzzlePieceGenerator == null ||
+                puzzleGridView == null ||
+                inputStateRouter == null ||
+                sortingManager == null)
+            {
+                Debug.LogWarning($"{nameof(RackManager)} is missing scene references.", this);
+                return false;
+            }
+
+            return true;
         }
     }
 }
