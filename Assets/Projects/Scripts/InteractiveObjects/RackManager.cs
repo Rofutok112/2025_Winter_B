@@ -37,6 +37,7 @@ namespace Projects.Scripts.InteractiveObjects
         /// </summary>
         private Rack _activeRack;
         private bool _isPuzzleTransitioning;
+        public event Action<Rack> PuzzleOpened;
         public event Action PuzzleConfirmed;
         public event Action PuzzleWindowActivated;
 
@@ -92,6 +93,7 @@ namespace Projects.Scripts.InteractiveObjects
 
             puzzlePieceGenerator.ResetPuzzle();
             puzzleWindow.SetActive(true);
+            PuzzleOpened?.Invoke(rack);
             PuzzleWindowActivated?.Invoke();
             puzzleGridView.PlayOpeningAnimation(() =>
             {
@@ -159,6 +161,21 @@ namespace Projects.Scripts.InteractiveObjects
             {
                 if (rack != null && rack.State == RackState.Packed)
                     return rack;
+            }
+
+            return null;
+        }
+
+        public Rack FindWashedRack()
+        {
+            if (racks == null) return null;
+
+            foreach (var rack in racks)
+            {
+                if (rack != null && rack.State == RackState.Washed)
+                {
+                    return rack;
+                }
             }
 
             return null;

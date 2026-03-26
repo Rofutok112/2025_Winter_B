@@ -44,6 +44,7 @@ namespace Projects.Scripts.InteractiveObjects
         public event Action WashStarted;
         public event Action<float> WashProgressChanged;
         public event Action<float> WashCompleted;
+        public event Action<Rack> RackUnloaded;
         public event Action<DishWasherState> StateChanged;
 
         private void Awake()
@@ -104,6 +105,7 @@ namespace Projects.Scripts.InteractiveObjects
             _completedWashElapsedSeconds = 0f;
 
             SetState(DishWasherState.Idle);
+            RackUnloaded?.Invoke(rack);
             _isRackTransitioning = false;
         }
 

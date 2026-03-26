@@ -15,8 +15,8 @@ MonoBehaviour:
   width: 1
   height: 5
   cells: 0101010101
-  dishTypeName: "\u30D5\u30A9\u30FC\u30AF"
+  dishTypeName: "\u30AB\u30C8\u30E9\u30EA\u30FC"
   dishSprites:
   - {fileID: 21300000, guid: aea676179fe54dc4eb11c71267ec2461, type: 3}
-  refillIntervalSeconds: 4
+  refillIntervalSeconds: 3
   scorePoints: 70

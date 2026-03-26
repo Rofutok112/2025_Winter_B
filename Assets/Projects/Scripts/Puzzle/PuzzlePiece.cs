@@ -16,6 +16,10 @@ namespace Projects.Scripts.Puzzle
     public class PuzzlePiece : MonoBehaviour, IInputHandler
     {
         private const int DragFrontSortingOrderStart = 1000;
+        private const int PlacedSortingOrder = 0;
+        private const string PlacedDishSortingLayerName = "PlacedDish";
+        private const string PreviewDishSortingLayerName = "PreviewDish";
+        private const string DraggingDishSortingLayerName = "DraggingDish";
         private static int s_nextDragSortingOrder = DragFrontSortingOrderStart;
 
         private PuzzlePieceShape _shape;
@@ -30,6 +34,7 @@ namespace Projects.Scripts.Puzzle
 
         [Tooltip("プレビュー（ゴースト）の不透明度（0.0～1.0）")]
         [SerializeField, Range(0f, 1f)] private float previewAlpha = 0.4f;
+        [SerializeField] private Color invalidPreviewTint = new(1f, 0.45f, 0.45f, 1f);
 
         [Tooltip("ストック状態でのスケール倍率")]
         [SerializeField, Range(0.1f, 1f)] private float stockScaleMultiplier = 0.8f;
@@ -57,6 +62,7 @@ namespace Projects.Scripts.Puzzle
         private readonly Dictionary<SpriteRenderer, float> _baseAlphaByRenderer = new();
         private SpriteRenderer _dishRenderer;
         private GameObject _ghostObject;
+        private SpriteRenderer _ghostRenderer;
         private PuzzlePieceGhostFactory _ghostFactory;
         private int _orderInLayer;
         private Sprite _selectedDishSprite;
@@ -149,7 +155,13 @@ namespace Projects.Scripts.Puzzle
                 dirtyAlphaMax,
                 dirtyScaleRange,
                 dirtySortingOrderOffset);
-            var visualBuilder = new PuzzlePieceVisualBuilder(_shape, GetSelectedSprite(), transform, dirtSettings);
+            var visualBuilder = new PuzzlePieceVisualBuilder(
+                _shape,
+                GetSelectedSprite(),
+                transform,
+                dirtSettings,
+                PlacedDishSortingLayerName,
+                PreviewDishSortingLayerName);
             var visualResult = visualBuilder.Build(previewAlpha, 10 + _orderInLayer, CurrentGeometry?.CellWorldSize ?? Vector2.one);
             _localCenter = visualResult.LocalCenter;
             _dishRenderer = visualResult.DishRenderer;
@@ -168,7 +180,7 @@ namespace Projects.Scripts.Puzzle
                 }
             }
 
-            UpdateSortingOrders(10 + _orderInLayer);
+            UpdateVisualSorting(PlacedDishSortingLayerName, PlacedSortingOrder + _orderInLayer);
         }
 
         public void ConfigureStackPresentationLocal(Vector3 localPosition, int orderInLayer, bool isInteractable)
@@ -179,7 +191,7 @@ namespace Projects.Scripts.Puzzle
             transform.localPosition = localPosition;
             _spawnLocalPosition = localPosition;
 
-            UpdateSortingOrders(10 + _orderInLayer);
+            UpdateVisualSorting(PlacedDishSortingLayerName, PlacedSortingOrder + _orderInLayer);
 
             ApplyStockScale();
             SetInteractable(isInteractable);
@@ -219,7 +231,7 @@ namespace Projects.Scripts.Puzzle
 
             AudioManager.PlayOneShot("PieceClick", 0.5f);
 
-            UpdateSortingOrders(s_nextDragSortingOrder++);
+            UpdateVisualSorting(DraggingDishSortingLayerName, s_nextDragSortingOrder++);
 
             _dragOffset = (Vector2)transform.position - pos;
             ApplyFullScale(dragScale);
@@ -257,6 +269,7 @@ namespace Projects.Scripts.Puzzle
                 // 配置成功: ピースをグリッドのセル位置にスナップ
                 AudioManager.PlayOneShot("PiecePlace", 0.5f);
                 SnapToGrid(gridPos);
+                UpdateVisualSorting(PlacedDishSortingLayerName, PlacedSortingOrder);
                 _isPlaced = true;
                 _placedGridOrigin = gridPos;
 
@@ -272,6 +285,7 @@ namespace Projects.Scripts.Puzzle
                 if (_returnToSpawnOnFailedPlacement)
                 {
                     transform.localPosition = _spawnLocalPosition;
+                    UpdateVisualSorting(PlacedDishSortingLayerName, PlacedSortingOrder + _orderInLayer);
                     AudioManager.PlayOneShot("PieceCancel", 0.25f);
                     ApplyStockScale();
                 }
@@ -308,7 +322,7 @@ namespace Projects.Scripts.Puzzle
             }
         }
 
-        private void UpdateSortingOrders(int baseSortingOrder)
+        private void UpdateVisualSorting(string sortingLayerName, int baseSortingOrder)
         {
             foreach (var spriteRenderer in _spriteRenderers)
             {
@@ -317,6 +331,7 @@ namespace Projects.Scripts.Puzzle
                     continue;
                 }
 
+                spriteRenderer.sortingLayerName = sortingLayerName;
                 spriteRenderer.sortingOrder = spriteRenderer == _dishRenderer
                     ? baseSortingOrder
                     : baseSortingOrder + dirtySortingOrderOffset;
@@ -331,10 +346,15 @@ namespace Projects.Scripts.Puzzle
             if (_ghostObject == null)
                 CreateGhost();
 
+            UpdateGhostSortingOrder();
+
             // ゴーストをスナップ位置に移動
             var snappedPos = GetPieceWorldPosition(gridOrigin);
 
             _ghostObject.transform.position = new Vector3(snappedPos.x, snappedPos.y, transform.position.z);
+
+            var canPlace = _gridView != null && _gridView.Grid != null && _gridView.Grid.CanPlace(_shape, gridOrigin);
+            UpdateGhostColor(canPlace);
         }
 
         /// <summary>
@@ -347,6 +367,9 @@ namespace Projects.Scripts.Puzzle
             _ghostObject = _ghostFactory != null
                 ? _ghostFactory.Create(_localCenter, previewAlpha)
                 : new GameObject("GhostPreview");
+            _ghostRenderer = _ghostObject.GetComponentInChildren<SpriteRenderer>();
+            UpdateGhostSortingOrder();
+            UpdateGhostColor(true);
         }
 
         private void ApplyBaseCellScale()
@@ -375,7 +398,32 @@ namespace Projects.Scripts.Puzzle
             {
                 Destroy(_ghostObject);
                 _ghostObject = null;
+                _ghostRenderer = null;
             }
+        }
+
+        private void UpdateGhostColor(bool canPlace)
+        {
+            if (_ghostRenderer == null)
+            {
+                return;
+            }
+
+            var tint = canPlace ? Color.white : invalidPreviewTint;
+            tint.a = previewAlpha;
+            _ghostRenderer.color = tint;
+        }
+
+        private void UpdateGhostSortingOrder()
+        {
+            if (_ghostRenderer == null)
+            {
+                return;
+            }
+
+            _ghostRenderer.sortingLayerName = PreviewDishSortingLayerName;
+            var dishSortingOrder = _dishRenderer != null ? _dishRenderer.sortingOrder : PlacedSortingOrder + _orderInLayer;
+            _ghostRenderer.sortingOrder = Mathf.Max(1, dishSortingOrder - 1);
         }
 
         /// <summary>

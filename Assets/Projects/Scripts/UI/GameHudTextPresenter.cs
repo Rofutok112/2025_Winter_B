@@ -33,6 +33,12 @@ namespace Projects.Scripts.UI
         {
             if (timeText == null) return;
 
+            if (float.IsInfinity(seconds))
+            {
+                timeText.text = $"{timePrefix}∞";
+                return;
+            }
+
             var clampedSeconds = Mathf.Max(0f, seconds);
             timeText.text = $"{timePrefix}{clampedSeconds:0.0}{timeSuffix}";
         }

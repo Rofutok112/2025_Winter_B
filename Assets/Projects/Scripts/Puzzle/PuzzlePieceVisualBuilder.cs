@@ -9,13 +9,23 @@ namespace Projects.Scripts.Puzzle
         private readonly Sprite _sprite;
         private readonly Transform _root;
         private readonly DishDirtVisualSettings _dirtSettings;
+        private readonly string _dishSortingLayerName;
+        private readonly string _previewSortingLayerName;
 
-        public PuzzlePieceVisualBuilder(PuzzlePieceShape shape, Sprite sprite, Transform root, DishDirtVisualSettings dirtSettings)
+        public PuzzlePieceVisualBuilder(
+            PuzzlePieceShape shape,
+            Sprite sprite,
+            Transform root,
+            DishDirtVisualSettings dirtSettings,
+            string dishSortingLayerName,
+            string previewSortingLayerName)
         {
             _shape = shape;
             _sprite = sprite;
             _root = root;
             _dirtSettings = dirtSettings;
+            _dishSortingLayerName = dishSortingLayerName;
+            _previewSortingLayerName = previewSortingLayerName;
         }
 
         public PuzzlePieceVisualResult Build(float previewAlpha, int sortingOrder, Vector2 cellWorldSize)
@@ -27,7 +37,7 @@ namespace Projects.Scripts.Puzzle
             var spriteRenderers = new List<SpriteRenderer>();
             var dishRenderer = CreateDishOverlay(center, sortingOrder, spriteRenderers);
             var collider = EnsureCollider(filledCells, center);
-            var ghostFactory = new PuzzlePieceGhostFactory(_shape, _sprite, cellWorldSize);
+            var ghostFactory = new PuzzlePieceGhostFactory(_shape, _sprite, cellWorldSize, _previewSortingLayerName);
 
             return new PuzzlePieceVisualResult(center, collider, dishRenderer, spriteRenderers, ghostFactory, previewAlpha);
         }
@@ -48,7 +58,7 @@ namespace Projects.Scripts.Puzzle
             );
             dishTransform.localPosition = bboxCenter;
             
-            sr.sortingLayerName = "Dish";
+            sr.sortingLayerName = _dishSortingLayerName;
             sr.sprite = _sprite;
             sr.color = Color.white;
             sr.sortingOrder = sortingOrder;
@@ -104,7 +114,7 @@ namespace Projects.Scripts.Puzzle
                 dirtyTransform.localRotation = Quaternion.Euler(0f, 0f, Random.Range(-25f, 25f));
 
                 var dirtyRenderer = dirtyObject.AddComponent<SpriteRenderer>();
-                dirtyRenderer.sortingLayerName = "Dish";
+                dirtyRenderer.sortingLayerName = _dishSortingLayerName;
                 dirtyRenderer.sprite = dirtySprite;
                 dirtyRenderer.sortingOrder = sortingOrder + _dirtSettings.SortingOrderOffset;
                 dirtyRenderer.color = new Color(1f, 1f, 1f, Random.Range(_dirtSettings.AlphaMin, _dirtSettings.AlphaMax));
@@ -253,12 +263,14 @@ namespace Projects.Scripts.Puzzle
         private readonly PuzzlePieceShape _shape;
         private readonly Sprite _sprite;
         private readonly Vector2 _cellWorldSize;
+        private readonly string _sortingLayerName;
 
-        public PuzzlePieceGhostFactory(PuzzlePieceShape shape, Sprite sprite, Vector2 cellWorldSize)
+        public PuzzlePieceGhostFactory(PuzzlePieceShape shape, Sprite sprite, Vector2 cellWorldSize, string sortingLayerName)
         {
             _shape = shape;
             _sprite = sprite;
             _cellWorldSize = cellWorldSize;
+            _sortingLayerName = sortingLayerName;
         }
 
         public GameObject Create(Vector2 localCenter, float previewAlpha)
@@ -276,7 +288,7 @@ namespace Projects.Scripts.Puzzle
             );
 
             var sr = dishObj.AddComponent<SpriteRenderer>();
-            sr.sortingLayerName = "Dish";
+            sr.sortingLayerName = _sortingLayerName;
             sr.sprite = _sprite;
             sr.color = new Color(1f, 1f, 1f, previewAlpha);
             sr.sortingOrder = 5;

@@ -31,6 +31,7 @@ namespace Projects.Scripts.Sorting
         private readonly List<GameObject> _spawnedObjects = new();
         private Rack _currentRack;
         private bool _isSortingTransitioning;
+        public event Action<Rack> SortingStarted;
         public event Action<int> SortingScoreConfirmed;
         public event Action SortingCompleted;
 
@@ -53,6 +54,7 @@ namespace Projects.Scripts.Sorting
             sortingWindow.SetActive(true);
             ResetTargets();
             SpawnDishes(rack.PlacementData);
+            SortingStarted?.Invoke(rack);
             sortingGridView.PlayOpeningAnimation(() =>
             {
                 inputStateRouter?.SetOperationState(InputOperationState.Sorting);

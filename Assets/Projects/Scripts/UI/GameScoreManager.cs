@@ -14,6 +14,7 @@ namespace Projects.Scripts.UI
         [Header("Settings")]
         [SerializeField, Min(1f)] private float gameTimeLimitSeconds = 60f;
         [SerializeField] private bool startTimerOnAwake = true;
+        [SerializeField] private bool useInfiniteTimeForTutorial;
 
         [Header("References")]
         [SerializeField] private DishWasher dishWasher;
@@ -32,6 +33,7 @@ namespace Projects.Scripts.UI
         public float RemainingTimeSeconds => _remainingTimeSeconds;
         public bool IsTimerRunning => _isTimerRunning;
         public bool IsTimeUp => _hasTimeUpInvoked;
+        public bool UseInfiniteTimeForTutorial => useInfiniteTimeForTutorial;
 
         public event Action<int> ScoreChanged;
         public event Action<float> TimeChanged;
@@ -39,7 +41,7 @@ namespace Projects.Scripts.UI
 
         private void Awake()
         {
-            _remainingTimeSeconds = gameTimeLimitSeconds;
+            _remainingTimeSeconds = useInfiniteTimeForTutorial ? float.PositiveInfinity : gameTimeLimitSeconds;
             _isTimerRunning = startTimerOnAwake;
             RefreshTexts();
             PuzzleScoreStore.SaveScore(0f);
@@ -47,6 +49,11 @@ namespace Projects.Scripts.UI
 
         private void Update()
         {
+            if (useInfiniteTimeForTutorial)
+            {
+                return;
+            }
+
             if (!_isTimerRunning || _remainingTimeSeconds <= 0f) return;
 
             _remainingTimeSeconds = Mathf.Max(0f, _remainingTimeSeconds - Time.deltaTime);
@@ -61,7 +68,7 @@ namespace Projects.Scripts.UI
         public void ResetSessionScore()
         {
             _totalPiecePoints = 0;
-            _remainingTimeSeconds = gameTimeLimitSeconds;
+            _remainingTimeSeconds = useInfiniteTimeForTutorial ? float.PositiveInfinity : gameTimeLimitSeconds;
             _hasTimeUpInvoked = false;
             _isTimerRunning = startTimerOnAwake;
             RefreshTexts();
@@ -82,6 +89,12 @@ namespace Projects.Scripts.UI
         
         public void StartTimer()
         {
+            if (useInfiniteTimeForTutorial)
+            {
+                _isTimerRunning = startTimerOnAwake;
+                return;
+            }
+
             if (_remainingTimeSeconds <= 0f) return;
             _isTimerRunning = true;
         }
@@ -98,6 +111,14 @@ namespace Projects.Scripts.UI
 
         public void SetRemainingTime(float seconds)
         {
+            if (useInfiniteTimeForTutorial)
+            {
+                _remainingTimeSeconds = float.PositiveInfinity;
+                _hasTimeUpInvoked = false;
+                RefreshTexts();
+                return;
+            }
+
             _remainingTimeSeconds = Mathf.Clamp(seconds, 0f, gameTimeLimitSeconds);
             if (_remainingTimeSeconds <= 0f)
             {
@@ -129,6 +150,11 @@ namespace Projects.Scripts.UI
 
         private void HandleTimeUp()
         {
+            if (useInfiniteTimeForTutorial)
+            {
+                return;
+            }
+
             if (_hasTimeUpInvoked)
             {
                 return;
